@@ -9,6 +9,6 @@ class Game:
         self.id = uuid.uuid4().hex
         self.creator = user
         self.guild = guild
-        self.cur_round = None
+        self.cur_round_id = None
         self.rounds = []
         self.players = []
