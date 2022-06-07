@@ -25,7 +25,7 @@ async def on_message(message):
     if message.author == client.user:
         return
 
-    message_manager = MessageManager(message)
+    message_manager = MessageManager(client, message)
 
     if message.content.startswith('!wb'):
         await message_manager.manage()

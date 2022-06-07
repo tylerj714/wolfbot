@@ -1,8 +1,9 @@
 CREATE TABLE game (
-    game_id           INTEGER PRIMARY KEY AUTOINCREMENT,
-    game_owner_id     INTEGER NOT NULL,
-    game_guild        TEXT    NOT NULL,
-    game_is_active    INTEGER NOT NULL
+    game_id                 INTEGER PRIMARY KEY AUTOINCREMENT,
+    game_owner_discord_id   TEXT NOT NULL,
+    game_owner_player_id    INTEGER,
+    game_guild_id           TEXT    NOT NULL,
+    game_is_active          INTEGER NOT NULL
 );
 
 CREATE TABLE round (
@@ -14,9 +15,10 @@ CREATE TABLE round (
 );
 
 CREATE TABLE player (
-    player_id     INTEGER PRIMARY KEY AUTOINCREMENT,
-    player_name   TEXT    NOT NULL,
-    player_status TEXT    NOT NULL
+    player_id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    player_discord_id   TEXT    NOT NULL,
+    player_guild_id     TEXT    NOT NULL,
+    player_name         TEXT    NOT NULL
 );
 
 CREATE TABLE vote (
@@ -36,6 +38,8 @@ CREATE TABLE game_round (
 CREATE TABLE game_player (
     game_id     INTEGER NOT NULL,
     player_id   INTEGER NOT NULL,
+    player_game_status  TEXT NOT NULL,
+    player_replaced_by_id   INTEGER,
     FOREIGN KEY (game_id) REFERENCES game(game_id),
     FOREIGN KEY (player_id) REFERENCES player(player_id)
 );
