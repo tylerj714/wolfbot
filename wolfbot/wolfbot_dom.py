@@ -38,12 +38,13 @@ class Game:
 
 
 class Player:
-    def __init__(self, player_id: int, player_discord_id: str, player_guild_id: str, player_name: str, player_status: str = None):
+    def __init__(self, player_id: int, player_discord_id: str, player_guild_id: str, player_name: str, player_status: str = None, player_replaced_by_id: int = -1):
         self.player_id = player_id
         self.player_discord_id = player_discord_id
         self.player_guild_id = player_guild_id
         self.player_name = player_name
         self.player_status = player_status
+        self.player_replaced_by_id = player_replaced_by_id
 
     @classmethod
     def from_row(cls, row):

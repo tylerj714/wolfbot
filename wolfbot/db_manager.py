@@ -2,6 +2,7 @@
 # a class for managing game state details
 
 import uuid
+import typing
 import sqlite3
 from discord import Guild, User
 import db_constants
@@ -96,6 +97,31 @@ class DBManager:
             logger.info(f'no player found')
             return None
 
+    def get_players_in_game(self, guild: Guild, game: Game) -> typing.List[Player]:
+        cursor = self.connection.cursor()
+        sql = f'select p.*, gp.player_game_status, gp.player_replaced_by_id ' \
+              f'from {db_constants.GAME_TABLE} g ' \
+              f'join {db_constants.GAME_PLAYER_TABLE} gp ' \
+              f'on g.game_id = gp.game_id ' \
+              f'join {db_constants.PLAYER_TABLE} p ' \
+              f'on gp.player_id = p.player_id ' \
+              f'where g.game_guild_id = {guild.id} ' \
+              f'and g.game_id = {game.game_id}'
+        logger.info(f'Running query: {sql}')
+        cursor.execute(sql)
+        rows = cursor.fetchall()
+        player_list = []
+        for row in rows:
+            player = Player(player_id=int(row[0]),
+                            player_discord_id=str(row[1]),
+                            player_guild_id=str(row[2]),
+                            player_name=str(row[3]),
+                            player_status=str(row[4]),
+                            player_replaced_by_id=int(row[5]) if row[5] is not None else -1)
+            logger.info(f'retrieved player: {Player.as_string(player)}')
+            player_list.append(player)
+        return player_list
+
     def create_player(self, guild: Guild, user: User) -> Player:
         cursor = self.connection.cursor()
         params = (user.id, guild.id, user.display_name)
@@ -122,7 +148,6 @@ class DBManager:
               f'and player_discord_id = ?'
         logger.info(f'updating player: {sql}; {params}')
         cursor.execute(sql, params)
-        player_id = cursor.lastrowid
         self.connection.commit()
         player = Player(player_id=player_id,
                         player_discord_id=user.id,
@@ -160,3 +185,29 @@ class DBManager:
                        f"values (?, ?, ?, null)", params)
         self.connection.commit()
         return
+
+    def replace_player(self, game: Game, player_to_replace: Player, player_replacing: Player):
+        cursor = self.connection.cursor()
+        params = (db_constants.PLAYER_REPLACED, player_replacing.player_id, game.game_id, player_to_replace.player_id)
+        sql = f'update {db_constants.GAME_PLAYER_TABLE} ' \
+              f'set player_game_status = ?, player_replaced_by_id = ? ' \
+              f'where game_id = ? ' \
+              f'and player_id = ?'
+        logger.info(f'updating player: {sql}; {params}')
+        cursor.execute(sql, params)
+        self.connection.commit()
+        return
+
+    def update_player_status(self, status: str, game: Game, player: Player) -> Player:
+        cursor = self.connection.cursor()
+        params = (status, game.game_id, player.player_id)
+        sql = f'update {db_constants.GAME_PLAYER_TABLE} ' \
+              f'set player_game_status = ? ' \
+              f'where game_id = ? ' \
+              f'and player_id = ?'
+        logger.info(f'updating player: {sql}; {params}')
+        cursor.execute(sql, params)
+        self.connection.commit()
+        player.player_status = status
+        logger.info(f'updated player: {Player.as_string(player)}')
+        return player
