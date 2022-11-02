@@ -27,10 +27,6 @@ client = WBClient()
 tree = app_commands.CommandTree(client)
 wb_mgr = WBManager(client)
 
-@tree.command(name = "test", description = "testing", guild = discord.Object(id = 947928220093788180))
-async def self(interaction: discord.Interaction, name: str):
-    await interaction.response.send_message(f"Hello {name}! I was made with Discord.py!")
-
 @tree.command(name = "game-manage", description = "Used for starting an ending a game on a discord server.", guild = discord.Object(id = 947928220093788180))
 async def game_manage(interaction: discord.Interaction, action: Literal['Create', 'End']):
     await interaction.response.send_message(f"You chose {action}")
