@@ -1,9 +1,11 @@
-# message_manager.py
+# wbmgr.py
 # manages responding to message requests
 from typing import List
 
 from wolfbot_dom import *
-from discord import Reaction, User, Guild, Client, Message, Member, TextChannel
+from discord import Reaction, User, Guild, Client, Message, Member, TextChannel, app_commands, Interaction
+from discord.app_commands.commands import Command
+from discord.app_commands import Namespace
 from db_manager import DBManager
 import db_constants
 import asyncio
@@ -12,25 +14,29 @@ import time
 import re
 
 
-class MessageManager:
-    def __init__(self, client, message):
+class WBManager:
+    def __init__(self, client):
         self.client = client
-        self.message = message
 
-    async def manage(self):
-        mg_message = self.message
-        logger.info(f'Got message {mg_message.content} from {mg_message.guild.id} in channel {mg_message.channel.name}')
-        if mg_message.content.startswith('!wb -game'):
-            await self.game()
-        if mg_message.content.startswith('!wb -round'):
-            await self.round()
-        if mg_message.content.startswith('!wb -vote'):
-            await self.vote()
-        if mg_message.content.startswith('!wb -player'):
-            await self.player()
+    async def manage(self, interaction: Interaction):
+        guild = interaction.guild
+        user = interaction.user
+        channel = interaction.channel
+        command_type = interaction.command.name
+        logger.info(f'Received command {command_type} from {guild.id} in channel {channel.name} by user {user.name}')
+        if command_type == "game":
+            await self.game(interaction)
+        if command_type == "game-player":
+            await self.game_player(interaction)
+        # if mg_message.content.startswith('!wb -round'):
+        #     await self.round()
+        # if mg_message.content.startswith('!wb -vote'):
+        #     await self.vote()
+        # if mg_message.content.startswith('!wb -player'):
+        #     await self.player()
 
         logger.info(
-            f'Finished with actions for message {mg_message.content} from {mg_message.guild.id} in channel {mg_message.channel.name}')
+            f'Finished processing command {command_type} from {guild.id} in channel {channel.name} by user {user.name}')
 
         return
 
@@ -38,67 +44,70 @@ class MessageManager:
 
         return
 
-    async def game(self):
-        gm_msg = self.message
+    async def game(self, interaction: Interaction):
         dbmgr = DBManager(db_constants.WOLFBOT_DB)
 
-        # Create the game
-        if gm_msg.content.startswith('!wb -game create'):
-            # Verify this user is registered; if they are not, register them
-            player_list = await self.register_players(dbmgr, gm_msg.channel, [gm_msg.author], gm_msg.guild)
+        action = interaction.namespace.action
 
-            # Check to see if there is already an active game
-            current_game = dbmgr.get_current_game(gm_msg.guild)
-            # If there is no currently active game, create one
-            if current_game is None:
-                response = f'Creating a new game in server {gm_msg.guild.name}...'
-                logger.info(f'sending response: {response}')
-                bot_msg = await gm_msg.channel.send(response)
-                dbmgr.create_game(gm_msg.guild, gm_msg.author, player_list[0].player_id)
-                updated_response = response + " and it's done! :tada: Have fun!"
-                logger.info(f'editing response: {updated_response}')
-                await bot_msg.edit(content=updated_response)
-            else:
-                game_creator = dbmgr.get_player_by_user_id(gm_msg.guild, current_game.creator_discord_id)
-                response = f'There is already an active game created by player {game_creator.player_name} in server {gm_msg.guild.name}; ' \
-                           f'the currently active game must be ended before a new one can be created.'
-                logger.info(f'sending response: {response}')
-                await gm_msg.channel.send(response)
 
-        # End the game
-        elif gm_msg.content.startswith('!wb -game end'):
-            current_game = dbmgr.get_current_game(gm_msg.guild)
-            if current_game is None:
-                response = f'No currently active game found on this server to end!'
-                logger.info(f'sending response: {response}')
-                await gm_msg.channel.send(response)
-            else:
-                response = f'Are you sure you would like to end the currently active game? (:+1:/:-1:)'
-                logger.info(f'sending response: {response}')
-                bot_msg = await gm_msg.channel.send(response)
-                confirmation_result = await self.confirmation_check(client=self.client, message=bot_msg)
-                if confirmation_result:
-                    dbmgr.end_game(guild=gm_msg.guild, game_id=current_game.game_id)
-                    response2 = f'Ended game {current_game.game_id} on {gm_msg.guild.name}'
-                    logger.info(f'sending response: {response2}')
-                    await gm_msg.channel.send(response2)
-                else:
-                    response2 = f'Cancelled ending the currently active game on {gm_msg.guild.name}'
-                    logger.info(f'sending response: {response2}')
-                    await gm_msg.channel.send(response2)
-
-        # Add player to game
-        elif gm_msg.content.startswith('!wb -game add-player'):
-            # Make sure the player submitting the request has been registered
-            msg_player = await self.get_message_author_as_player(dbmgr=dbmgr, channel=gm_msg.channel,
-                                                                 user=gm_msg.author, guild=gm_msg.guild)
-            # First, make sure all players are registered
-            player_list = await self.register_players(dbmgr, gm_msg.channel, gm_msg.mentions, gm_msg.guild)
-            # Second, make sure there's even a game created that is active on this server
-            current_game = await self.get_current_game_with_create(player=msg_player, message=gm_msg,
-                                                                   guild=gm_msg.guild, dbmgr=dbmgr)
-            # Finally, add all the players to the game
-            await self.add_players_to_game(dbmgr=dbmgr, channel=gm_msg.channel, game=current_game, players=player_list)
+        dummy = "a thin"
+        # # Create the game
+        # if gm_msg.content.startswith('!wb -game create'):
+        #     # Verify this user is registered; if they are not, register them
+        #     player_list = await self.register_players(dbmgr, gm_msg.channel, [gm_msg.author], gm_msg.guild)
+        #
+        #     # Check to see if there is already an active game
+        #     current_game = dbmgr.get_current_game(gm_msg.guild)
+        #     # If there is no currently active game, create one
+        #     if current_game is None:
+        #         response = f'Creating a new game in server {gm_msg.guild.name}...'
+        #         logger.info(f'sending response: {response}')
+        #         bot_msg = await gm_msg.channel.send(response)
+        #         dbmgr.create_game(gm_msg.guild, gm_msg.author, player_list[0].player_id)
+        #         updated_response = response + " and it's done! :tada: Have fun!"
+        #         logger.info(f'editing response: {updated_response}')
+        #         await bot_msg.edit(content=updated_response)
+        #     else:
+        #         game_creator = dbmgr.get_player_by_user_id(gm_msg.guild, current_game.creator_discord_id)
+        #         response = f'There is already an active game created by player {game_creator.player_name} in server {gm_msg.guild.name}; ' \
+        #                    f'the currently active game must be ended before a new one can be created.'
+        #         logger.info(f'sending response: {response}')
+        #         await gm_msg.channel.send(response)
+        #
+        # # End the game
+        # elif gm_msg.content.startswith('!wb -game end'):
+        #     current_game = dbmgr.get_current_game(gm_msg.guild)
+        #     if current_game is None:
+        #         response = f'No currently active game found on this server to end!'
+        #         logger.info(f'sending response: {response}')
+        #         await gm_msg.channel.send(response)
+        #     else:
+        #         response = f'Are you sure you would like to end the currently active game? (:+1:/:-1:)'
+        #         logger.info(f'sending response: {response}')
+        #         bot_msg = await gm_msg.channel.send(response)
+        #         confirmation_result = await self.confirmation_check(client=self.client, message=bot_msg)
+        #         if confirmation_result:
+        #             dbmgr.end_game(guild=gm_msg.guild, game_id=current_game.game_id)
+        #             response2 = f'Ended game {current_game.game_id} on {gm_msg.guild.name}'
+        #             logger.info(f'sending response: {response2}')
+        #             await gm_msg.channel.send(response2)
+        #         else:
+        #             response2 = f'Cancelled ending the currently active game on {gm_msg.guild.name}'
+        #             logger.info(f'sending response: {response2}')
+        #             await gm_msg.channel.send(response2)
+        #
+        # # Add player to game
+        # elif gm_msg.content.startswith('!wb -game add-player'):
+        #     # Make sure the player submitting the request has been registered
+        #     msg_player = await self.get_message_author_as_player(dbmgr=dbmgr, channel=gm_msg.channel,
+        #                                                          user=gm_msg.author, guild=gm_msg.guild)
+        #     # First, make sure all players are registered
+        #     player_list = await self.register_players(dbmgr, gm_msg.channel, gm_msg.mentions, gm_msg.guild)
+        #     # Second, make sure there's even a game created that is active on this server
+        #     current_game = await self.get_current_game_with_create(player=msg_player, message=gm_msg,
+        #                                                            guild=gm_msg.guild, dbmgr=dbmgr)
+        #     # Finally, add all the players to the game
+        #     await self.add_players_to_game(dbmgr=dbmgr, channel=gm_msg.channel, game=current_game, players=player_list)
 
         dbmgr.connection.close()
         return
@@ -139,13 +148,17 @@ class MessageManager:
             await message.channel.send(response)
         return current_game
 
+    async def game_player(self, interaction:Interaction):
+        nothing = "nothing"
+
     async def round(self):
         gm_msg = self.message
         dbmgr = DBManager(db_constants.WOLFBOT_DB)
 
-        current_game = self.get_current_game(message=gm_msg, guild=gm_msg.guild,dbmgr=dbmgr)
+        current_game = self.get_current_game(message=gm_msg, guild=gm_msg.guild, dbmgr=dbmgr)
 
-        author_player = self.get_message_author_as_player(user=gm_msg.author, guild=gm_msg.guild, channel=gm_msg.channel, dbmgr=dbmgr)
+        author_player = self.get_message_author_as_player(user=gm_msg.author, guild=gm_msg.guild,
+                                                          channel=gm_msg.channel, dbmgr=dbmgr)
 
         current_round = self.get_current_round(game=current_game, guild=gm_msg.guild, dbmgr=dbmgr)
 
@@ -203,10 +216,12 @@ class MessageManager:
                 # get the first and second mentioned players, and update the replacement
                 msg_search = re.search(r'<@(\d+)>\s+with\s+<@(\d+)>', ply_msg.content)
                 if msg_search is not None and len(msg_search.groups()) == 2:
-                    logger.info(f'mention 1 group is: {msg_search.group(1)} and mention 2 group is: {msg_search.group(2)}')
+                    logger.info(
+                        f'mention 1 group is: {msg_search.group(1)} and mention 2 group is: {msg_search.group(2)}')
                     replaced_user = await self.client.fetch_user(msg_search.group(1))
                     replacing_user = await self.client.fetch_user(msg_search.group(2))
-                    logger.info(f'got replaced_user {replaced_user.id} {replaced_user.display_name} and replacing_user {replacing_user.id} {replacing_user.display_name}')
+                    logger.info(
+                        f'got replaced_user {replaced_user.id} {replaced_user.display_name} and replacing_user {replacing_user.id} {replacing_user.display_name}')
 
                     if replaced_user is not None and replacing_user is not None:
                         await self.replace_player(dbmgr=dbmgr, channel=ply_msg.channel, replaced_user=replaced_user,
@@ -248,14 +263,15 @@ class MessageManager:
         return user_player
 
     # async def check_player_in_game(self):
-    #     #TODO check to see if the player is part of the current game, and if not, ask if the moderator wants to add tthem
+
+    # TODO check to see if the player is part of the current game, and if not, ask if the moderator wants to add them
 
     async def replace_player(self, dbmgr: DBManager, channel: TextChannel, replaced_user: User, replacing_user: User,
                              guild: Guild, game: Game):
         replaced_player = dbmgr.get_player(guild, replaced_user)
         replacing_player = dbmgr.get_player(guild, replacing_user)
 
-        #TODO Need to verify that both players are currently register, and exist in the active game or some weird stuff will happen
+        # TODO Need to verify that both players are currently register, and exist in the active game or some weird stuff will happen
 
         dbmgr.replace_player(game, replaced_player, replacing_player)
 
@@ -306,7 +322,8 @@ class MessageManager:
             await bot_msg.edit(content=updated_response)
         return user_player
 
-    async def register_players(self, dbmgr: DBManager, channel: TextChannel, users: List[User], guild: Guild) -> List[Player]:
+    async def register_players(self, dbmgr: DBManager, channel: TextChannel, users: List[User], guild: Guild) -> List[
+        Player]:
         player_list = []
 
         if len(users) > 0:
@@ -314,7 +331,7 @@ class MessageManager:
                 # Check to see if this user is already registered in the DB, if not, they will be added
                 player = self.check_player_registered(dbmgr=dbmgr, guild=guild, user=user, channel=channel)
                 player_list.append(player)
-                
+
         return player_list
 
     async def add_players_to_game(self, dbmgr: DBManager, channel: TextChannel, game: Game, players: List[Player]):

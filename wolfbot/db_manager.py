@@ -196,6 +196,14 @@ class DBManager:
         logger.info(f'updating player: {sql}; {params}')
         cursor.execute(sql, params)
         self.connection.commit()
+
+        params2 = (db_constants.PLAYER_ALIVE, '', game.game_id, player_to_replace.player_id)
+        sql2 = f'update {db_constants.GAME_PLAYER_TABLE} ' \
+               f'set player_game_status = ?, player_replaced_by_id = ? ' \
+               f'where game_id = ? ' \
+               f'and player_id = ?'
+        logger.info(f'updating player: {sql2}; {params2}')
+        cursor.execute(sql2, params2)
         return
 
     def update_player_status(self, status: str, game: Game, player: Player) -> Player:
@@ -211,3 +219,52 @@ class DBManager:
         player.player_status = status
         logger.info(f'updated player: {Player.as_string(player)}')
         return player
+
+    def create_round(self, game: Game, round_number: str, tally_mode: str, start_timestamp: str = None, end_timestamp: str = None) -> Round:
+
+        return
+
+    def get_rounds(self, game: Game):
+        cursor = self.connection.cursor()
+        params = [game.game_id]
+        sql = f'select r.round_id as round_id, r.round_number as round_number, r.round_is_active as round_is_active, ' \
+              f'r.start_timestamp as start_timestamp, r.end_timestamp as end_timestamp, r.round_tally_mode as round_tally_mode ' \
+              f'from {db_constants.GAME_ROUND_TABLE} gr ' \
+              f'join {db_constants.ROUND_TABLE} r ' \
+              f'on gr.round_id = r.round_id ' \
+              f'where gr.game_id = ? '
+        logger.info(f'running query {sql}; {params}')
+        cursor.execute(sql, params)
+        rows = cursor.fetchall()
+        round_list = []
+        for row in rows:
+            a_round = Round.from_row(row)
+            if a_round.round_is_active:
+                game.cur_round_id = a_round.round_id
+            logger.info(f'retrieved round {a_round.as_string}')
+            round_list.append(a_round)
+        game.rounds = round_list
+        return round_list
+
+    def get_active_round(self, game: Game):
+        cursor = self.connection.cursor()
+        params = [game.game_id]
+        sql = f'select r.round_id as round_id, r.round_number as round_number, r.round_is_active as round_is_active, ' \
+              f'r.start_timestamp as start_timestamp, r.end_timestamp as end_timestamp, r.round_tally_mode as round_tally_mode ' \
+              f'from {db_constants.GAME_ROUND_TABLE} gr ' \
+              f'join {db_constants.ROUND_TABLE} r ' \
+              f'on gr.round_id = r.round_id ' \
+              f'where gr.game_id = ? ' \
+              f'and r.round_is_active <> 0'
+        logger.info(f'running query {sql}; {params}')
+        cursor.execute(sql, params)
+        record = cursor.fetchone()
+        if record is not None:
+            a_round = Round.from_row(record)
+            game.rounds.append(a_round)
+            game.cur_round_id = a_round.round_id
+            logger.info(f'retrieved round {a_round.as_string}')
+            return a_round
+        else:
+            logger.info(f'no active round found')
+            return None

@@ -9,6 +9,7 @@ CREATE TABLE game (
 CREATE TABLE round (
     round_id              INTEGER PRIMARY KEY AUTOINCREMENT,
     round_number          INTEGER NOT NULL,
+    round_is_active       INTEGER NOT NULL,
     round_tally_mode      TEXT    NOT NULL,
     round_start_timestamp TEXT    NOT NULL,
     round_end_timestamp   TEXT    NOT NULL
@@ -29,8 +30,8 @@ CREATE TABLE vote (
 );
 
 CREATE TABLE game_round (
-    game_id   INTEGER NOT NULL,
-    round_id  INTEGER NOT NULL,
+    game_id         INTEGER NOT NULL,
+    round_id        INTEGER NOT NULL,
     FOREIGN KEY (game_id) REFERENCES game(game_id),
     FOREIGN KEY (round_id) REFERENCES round(round_id)
 );

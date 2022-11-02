@@ -66,13 +66,30 @@ class Player:
 
 
 class Round:
-    def __init__(self, round_id, round_tally_mode):
+    def __init__(self, round_id, round_number, round_is_active, round_tally_mode):
         self.round_id = round_id
-        self.round_number = None
+        self.round_number = round_number
+        self.round_is_active = round_is_active
         self.round_votes = []
         self.round_start_timestamp = None
         self.round_end_timestamp = None
         self.round_tally_mode = round_tally_mode
+
+    @classmethod
+    def from_row(cls, row):
+        round_id = int(row[0])
+        round_number = str(row[1])
+        round_is_active = str(row[2])
+        round_start_timestamp = str(row[3])
+        round_end_timestamp = str(row[4])
+        round_tally_mode = str(row[5])
+        a_round = Round(round_id=round_id,
+                        round_number=round_number,
+                        round_is_active=round_is_active,
+                        round_tally_mode=round_tally_mode)
+        a_round.round_start_timestamp = round_start_timestamp
+        a_round.round_end_timestamp = round_end_timestamp
+        return a_round
 
     def as_string(self):
         return f'round_id:{self.round_id}, ' \

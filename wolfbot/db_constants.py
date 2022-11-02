@@ -8,6 +8,7 @@ ROUND_TABLE = "round"
 PLAYER_TABLE = "player"
 VOTE_TABLE = "vote"
 GAME_PLAYER_TABLE = "game_player"
+GAME_ROUND_TABLE = "game_round"
 
 #Player Status
 PLAYER_ALIVE = "alive"
@@ -17,6 +18,10 @@ PLAYER_DEAD = "dead"
 #Vote For Method
 VOTE_METHOD_PLAYER = "vm_player"
 VOTE_METHOD_LIST = "vm_pdfl"
+
+#Vote Placeholders
+VOTE_NOBODY = "nobody"
+VOTE_UNVOTE = "unvote"
 
 #Vote Calculation Algorithm Types
 VOTE_CALC_MAJORITY = "maj"
