@@ -2,21 +2,30 @@
 # a class for managing game state details
 
 import uuid
+import os
 import typing
 import sqlite3
-from discord import Guild, User
+from discord import Guild, User, Member, Client
 import db_constants
 from wolfbot_dom import Game, Player, Round, Vote
 from logging_manager import logger
+from discord.utils import get
 
+BASE_PATH = os.getenv('BASE_PATH')
+DB_PATH = os.path.join(BASE_PATH, db_constants.WOLFBOT_DB)
 
 class DBManager:
-    def __init__(self, db_name):
-        self.db_name = db_name
-        self.connection = sqlite3.connect(db_name)
+    def __init__(self, client):
+        self.client = client,
+        self.connection = sqlite3.connect(DB_PATH)
 
     def get_cursor(self):
         return self.connection.cursor()
+
+    def getMember(self, user_id: str) -> Member:
+        member = get(self.client.get_all_members(), id=user_id)
+        return member
+
 
     def create_game(self, guild: Guild, discord_user: User, player_id: int) -> Game:
         cursor = self.connection.cursor()
@@ -63,12 +72,13 @@ class DBManager:
         cursor.execute(sql, params)
         self.connection.commit()
 
-    def get_player(self, guild: Guild, user: User) -> Player:
+    def get_player(self, guild: Guild, game: Game, member: Member) -> Player:
         cursor = self.connection.cursor()
         sql = f'select * ' \
               f'from {db_constants.PLAYER_TABLE} ' \
               f'where player_guild_id = {guild.id} ' \
-              f'and player_discord_id = {user.id}'
+              f'and game_id = {game.game_id} ' \
+              f'and player_discord_id = {member.id}'
         logger.info(f'Running query: {sql}')
         cursor.execute(sql)
         record = cursor.fetchone()
@@ -122,9 +132,9 @@ class DBManager:
             player_list.append(player)
         return player_list
 
-    def create_player(self, guild: Guild, user: User) -> Player:
+    def create_player(self, guild: Guild, member: Member) -> Player:
         cursor = self.connection.cursor()
-        params = (user.id, guild.id, user.display_name)
+        params = (member.id, guild.id, member.display_name)
         sql = f'insert into {db_constants.PLAYER_TABLE} ' \
               f'values (null, ?, ?, ?)'
         logger.info(f'insert into player: {sql}; {params}')
@@ -132,15 +142,15 @@ class DBManager:
         player_id = cursor.lastrowid
         self.connection.commit()
         player = Player(player_id=player_id,
-                        player_discord_id=user.id,
+                        player_discord_id=member.id,
                         player_guild_id=guild.id,
-                        player_name=user.display_name)
+                        player_name=member.display_name)
         logger.info(f'created player: {Player.as_string(player)}')
         return player
 
-    def update_player_name(self, player_id: int, guild: Guild, user: User) -> Player:
+    def update_player_name(self, player_id: int, guild: Guild, member: Member) -> Player:
         cursor = self.connection.cursor()
-        params = (user.display_name, player_id, guild.id, user.id)
+        params = (member.display_name, player_id, guild.id, member.id)
         sql = f'update {db_constants.PLAYER_TABLE} ' \
               f'set player_name = ? ' \
               f'where player_id = ? ' \
@@ -150,9 +160,9 @@ class DBManager:
         cursor.execute(sql, params)
         self.connection.commit()
         player = Player(player_id=player_id,
-                        player_discord_id=user.id,
+                        player_discord_id=member.id,
                         player_guild_id=guild.id,
-                        player_name=user.display_name)
+                        player_name=member.display_name)
         logger.info(f'updated player: {Player.as_string(player)}')
         return player
 

@@ -14,6 +14,7 @@ GAME_ROUND_TABLE = "game_round"
 PLAYER_ALIVE = "alive"
 PLAYER_REPLACED = "replaced"
 PLAYER_DEAD = "dead"
+PLAYER_REMOVED = "removed"
 
 #Vote For Method
 VOTE_METHOD_PLAYER = "vm_player"

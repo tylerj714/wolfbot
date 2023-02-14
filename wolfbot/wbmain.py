@@ -29,7 +29,9 @@ wb_mgr = WBManager(client)
 
 @tree.command(name = "game-manage", description = "Used for starting an ending a game on a discord server.", guild = discord.Object(id = 947928220093788180))
 async def game_manage(interaction: discord.Interaction, action: Literal['Create', 'End']):
-    await interaction.response.send_message(f"You chose {action}")
+    logger.info(f'Received command: {interaction.command.name} {action} from user {interaction.user.id} in guild {interaction.guild.id}')
+    manage_response = await wb_mgr.game_manage(interaction, action)
+    await interaction.response.send_message(f"{manage_response}")
 
 @tree.command(name="game-player", description="Used for adding, removing, replacing, or changing status of a player", guild=discord.Object(id = 947928220093788180))
 @app_commands.describe(
@@ -38,8 +40,9 @@ async def game_manage(interaction: discord.Interaction, action: Literal['Create'
     withplayer="Only for use with 'Replace' action; a player to replace chosen player in the 'player' argument"
 )
 async def game_player(interaction: discord.Interaction, action: Literal['Add', 'Remove', 'Kill', 'Replace'], player: discord.Member, withplayer: Optional[discord.Member] = None):
-    with_player = withplayer.name if withplayer is not None else "nobody"
-    await interaction.response.send_message(f'You chose {action} and {player} and {with_player}')
+    logger.info(f'Received command: {interaction.command.name} {action} {withplayer or "nobody"} from user {interaction.user.id} in guild {interaction.guild.id}')
+    manage_response = await wb_mgr.game_player(interaction, action, player, withplayer)
+    await interaction.response.send_message(f'{manage_response}')
 
 @tree.command(name="round-create", description="Used for creating a voting round", guild=discord.Object(id = 947928220093788180))
 @app_commands.describe(
@@ -66,7 +69,7 @@ async def round_create(
     round_end_time = roundend if roundend is not None else -1
     report_channel = reportchannel if reportchannel is not None else interaction.channel
 
-    await interaction.response.send_message(f'You chose {votetype}, {votetabulate}, {lockonmajority}, {hiddenvote}, {roundend}, and {reportchannel}')
+    await interaction.response.send_message(f'You chose {votetype}, {votetabulate}, {lockonmajority}, {hiddenvote}, {round_start_time}, {round_end_time}, and {report_channel}')
 
 @tree.command(name='round-manage', description="Used for managing the round parameters or to end the round", guild=discord.Object(id = 947928220093788180))
 async def round_manage(
@@ -75,7 +78,9 @@ async def round_manage(
         parameter: Optional[Literal['lockonmajority', 'roundstart', 'roundend', 'reportchannel']] = None,
         value: Optional[str] = None
 ):
-    await interaction.response.send_message(f'You chose {action}')
+    param = parameter if parameter is not None else "none"
+    val = value if value is not None else "none"
+    await interaction.response.send_message(f'You chose {action} with parameter {param} and value {val}')
 
 @tree.command(name='vote-tally', description="Used to get the latest vote tally. By default gets the tally of the currently active round.", guild=discord.Object(id = 947928220093788180))
 async def vote_tally(interaction: discord.Interaction, round: Optional[int] = None):
@@ -98,5 +103,10 @@ async def vote_player(interaction: discord.Interaction, player: Optional[discord
 @tree.command(name='vote-choice', description="Allows voting for a choice by entering a number. An entry of 0 will clear an existing vote.", guild=discord.Object(id = 947928220093788180))
 async def vote_choice(interaction: discord.Interaction, choice: app_commands.Range[int, 0, 9] = 0):
     await interaction.response.send_message(f'You selected option #{choice}')
+
+@tree.command(name='dummy-defer', description="Test method for deferring long-running responses", guild=discord.Object(id = 947928220093788180))
+async def dummy_defer(interaction: discord.Interaction):
+    await interaction.response.defer(ephemeral = True)
+    await interaction.followup.send('Deferred response!')
 
 client.run(TOKEN)
